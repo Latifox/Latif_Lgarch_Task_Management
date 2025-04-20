@@ -1,0 +1,102 @@
+name: Task Management App CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16.x'
+        cache: 'npm'
+        cache-dependency-path: backend/package.json
+    
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm ci
+    
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm test
+      env:
+        JWT_SECRET: testsecret
+        MONGODB_URI: mongodb://localhost:27017/test-task-manager
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16.x'
+        cache: 'npm'
+        cache-dependency-path: frontend/package.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --watchAll=false
+    
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16.x'
+    
+    - name: Install ESLint
+      run: npm install -g eslint
+    
+    - name: Install backend dependencies for linting
+      run: |
+        cd backend
+        npm ci
+    
+    - name: Lint backend
+      run: |
+        cd backend
+        npx eslint . --ext .js
+    
+    - name: Install frontend dependencies for linting
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Lint frontend
+      run: |
+        cd frontend
+        npx eslint . --ext .js,.jsx,.ts,.tsx 
