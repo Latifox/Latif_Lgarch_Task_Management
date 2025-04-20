@@ -1,0 +1,301 @@
+version: '3.8'
+
+services:
+  # MongoDB service
+  mongodb:
+    image: mongo:4.4
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=task-manager
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # MongoDB Replica Set for high availability
+  mongodb-replica1:
+    image: mongo:4.4
+    volumes:
+      - mongodb_replica1_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=task-manager
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    networks:
+      - app-network
+    restart: always
+    depends_on:
+      - mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # MongoDB Replica Set for high availability
+  mongodb-replica2:
+    image: mongo:4.4
+    volumes:
+      - mongodb_replica2_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=task-manager
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    networks:
+      - app-network
+    restart: always
+    depends_on:
+      - mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Backend service
+  backend:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_USERNAME:-user}/task-manager-backend:${TAG:-latest}
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017,mongodb-replica1:27017,mongodb-replica2:27017/task-manager?replicaSet=rs0
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=5000
+      - CORS_ORIGIN=https://yourtaskmanager.com
+    depends_on:
+      - mongodb
+      - mongodb-replica1
+      - mongodb-replica2
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Frontend service (Nginx serving static files)
+  frontend:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_USERNAME:-user}/task-manager-frontend:${TAG:-latest}
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=https://api.yourtaskmanager.com
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Nginx load balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/production/conf.d:/etc/nginx/conf.d
+      - ./nginx/production/ssl:/etc/nginx/ssl
+      - ./nginx/production/www:/var/www/html
+      - ./nginx/production/logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Redis for caching
+  redis:
+    image: redis:alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Backup service
+  backup:
+    image: mongo:4.4
+    volumes:
+      - mongodb_data:/data/db:ro
+      - backup_data:/backup
+    depends_on:
+      - mongodb
+    entrypoint: >
+      /bin/sh -c "
+        set -e;
+        echo 'Starting MongoDB backup service';
+        while true; do
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+          echo \"Creating backup $$TIMESTAMP\";
+          mongodump --host mongodb --username ${MONGO_ROOT_USER} --password ${MONGO_ROOT_PASSWORD} --authenticationDatabase admin --db task-manager --archive=/backup/backup_$$TIMESTAMP.gz --gzip;
+          echo 'Backup completed';
+          echo 'Cleaning old backups';
+          cd /backup && ls -t | tail -n +15 | xargs rm -f;
+          echo 'Waiting for next backup in 12 hours';
+          sleep 43200;
+        done
+      "
+    restart: always
+    networks:
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Remote backup sync
+  backup-sync:
+    image: alpine:latest
+    volumes:
+      - backup_data:/backup:ro
+      - ./scripts/backup-sync.sh:/backup-sync.sh:ro
+      - ./ssh:/root/.ssh:ro
+    entrypoint: >
+      /bin/sh -c "
+        apk add --no-cache openssh-client rsync;
+        chmod 600 /root/.ssh/id_rsa;
+        chmod +x /backup-sync.sh;
+        echo 'Starting backup sync service';
+        while true; do
+          echo 'Syncing backups to remote server';
+          /backup-sync.sh;
+          echo 'Backup sync completed';
+          echo 'Waiting for next sync in 24 hours';
+          sleep 86400;
+        done
+      "
+    restart: always
+    networks:
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+# Define volumes
+volumes:
+  mongodb_data:
+  mongodb_replica1_data:
+  mongodb_replica2_data:
+  redis_data:
+  backup_data:
+  prometheus_data:
+  grafana_data:
+
+# Define networks
+networks:
+  app-network:
+    driver: bridge 

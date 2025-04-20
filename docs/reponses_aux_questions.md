@@ -240,9 +240,10 @@ Dans notre projet, nous avons implémenté un workflow GitHub Actions qui :
 - Exécute les tests unitaires et d'intégration
 - Vérifie le linting du code
 - Construit l'application
-- Pourrait facilement être étendu pour le déploiement continu
+- Déploie automatiquement vers les environnements de staging et production
+- Envoie des notifications en cas de succès ou d'échec
 
-Cette approche nous a permis d'automatiser les vérifications à chaque push, assurant la qualité continue du code.
+Cette approche nous a permis d'automatiser entièrement le processus de livraison, de l'intégration au déploiement, assurant la qualité continue du code.
 
 ## 11. A quoi sert un Webhook et quel est l'avantage de son utilisation?
 
@@ -265,9 +266,9 @@ Dans un système d'intégration continue, les webhooks sont particulièrement ut
 - Déclencher des builds automatiquement lors d'un push sur le dépôt
 - Notifier l'équipe des résultats de build via Slack, Teams ou email
 - Déclencher des déploiements après un build réussi
-- Intégrer différents outils (GitHub, Jenkins, SonarQube, etc.)
+- Intégrer différents outils (GitHub, SonarQube, Docker Hub, etc.)
 
-Par exemple, dans notre projet, nous pourrions configurer un webhook GitHub pour déclencher un pipeline de déploiement externe lorsqu'un tag de version est créé.
+Par exemple, dans notre projet, nous utilisons les webhooks pour déclencher automatiquement nos workflows GitHub Actions lorsqu'un push est effectué, et pour envoyer des notifications Slack lorsque le déploiement est terminé.
 
 ## 12. Quel est l'avantage des workflows dans un serveur IC?
 
@@ -289,34 +290,34 @@ Les workflows dans un serveur d'Intégration Continue (IC) offrent une approche 
 
 8. **Feedback rapide** : Les workflows bien conçus fournissent un retour rapide aux développeurs sur la qualité de leurs changements.
 
-Dans notre projet, notre workflow GitHub Actions démontre ces avantages en enchaînant automatiquement les étapes de build, de test et potentiellement de déploiement.
+Dans notre projet, nos workflows GitHub Actions démontrent ces avantages en enchaînant automatiquement les étapes de build, de test, d'analyse de qualité et de déploiement, tout en fournissant des notifications instantanées à l'équipe.
 
 ## 13. Quel est l'avantage de la stratégie Maître/Esclave dans le serveur d'Intégration Continue?
 
-La stratégie Maître/Esclave (ou Master/Agent) dans un serveur d'Intégration Continue comme Jenkins distribue la charge de travail entre plusieurs machines :
+La stratégie de distribution de charge dans les systèmes d'intégration continue comme GitHub Actions permet d'optimiser l'exécution des workflows :
 
 ### Fonctionnement
-- **Nœud maître** : Orchestre les tâches, gère la file d'attente des builds et l'interface utilisateur
-- **Nœuds esclaves** : Exécutent les builds et tests selon les instructions du maître
+- **Orchestrateur central** : Gère la file d'attente des workflows et distribue les jobs
+- **Runners** : Exécutent les jobs individuels sur différentes machines ou environnements
 
 ### Avantages
-1. **Scalabilité horizontale** : Capacité d'ajouter des agents pour augmenter le débit de traitement global du système CI.
+1. **Scalabilité horizontale** : Capacité d'ajouter des runners pour augmenter le débit de traitement global du système CI.
 
-2. **Parallélisation** : Exécution simultanée de plusieurs builds sur différents agents, réduisant le temps d'attente.
+2. **Parallélisation** : Exécution simultanée de plusieurs jobs sur différents runners, réduisant le temps d'attente.
 
-3. **Environnements hétérogènes** : Possibilité de configurer des agents avec différents systèmes d'exploitation, configurations ou outils.
+3. **Environnements hétérogènes** : Possibilité de configurer des runners avec différents systèmes d'exploitation, configurations ou outils.
 
-4. **Isolation** : Chaque build s'exécute dans un environnement isolé, évitant les interférences entre builds.
+4. **Isolation** : Chaque job s'exécute dans un environnement isolé, évitant les interférences entre jobs.
 
-5. **Résilience** : Le système continue de fonctionner même si certains agents sont indisponibles.
+5. **Résilience** : Le système continue de fonctionner même si certains runners sont indisponibles.
 
-6. **Optimisation des ressources** : Utilisation efficace des ressources avec des agents spécialisés pour certains types de builds.
+6. **Optimisation des ressources** : Utilisation efficace des ressources avec des runners spécialisés pour certains types de jobs.
 
-7. **Sécurité renforcée** : Le maître peut être mieux sécurisé, tandis que les agents exécutent le code potentiellement dangereux.
+7. **Sécurité renforcée** : L'orchestrateur peut être mieux sécurisé, tandis que les runners exécutent le code potentiellement dangereux.
 
-8. **Répartition géographique** : Possibilité de placer des agents dans différentes zones géographiques pour optimiser les performances.
+8. **Répartition géographique** : Possibilité de placer des runners dans différentes zones géographiques pour optimiser les performances.
 
-Cette architecture distribuée est particulièrement pertinente pour les grandes équipes ou les projets complexes nécessitant de nombreux tests ou builds dans des environnements variés.
+GitHub Actions implémente ce concept avec ses runners hébergés et auto-hébergés, permettant de distribuer efficacement la charge de travail et d'exécuter des workflows dans divers environnements selon les besoins.
 
 ## 14. Quelle est la différence entre un build échoué et un build instable?
 

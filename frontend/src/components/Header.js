@@ -1,15 +1,13 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-const Header: React.FC = () => {
+const Header = () => {
   const navigate = useNavigate();
-  // In a real app, these would come from context/state management
-  const isAuthenticated = false;
-  const userName = 'User';
+  const { isAuthenticated, user, logout } = useAuth();
 
-  const handleLogout = () => {
-    // In a real app, we would call logout API and clear tokens
-    console.log('Logging out...');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -23,7 +21,19 @@ const Header: React.FC = () => {
         <nav>
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
-              <span className="text-gray-700">Welcome, {userName}</span>
+              <Link 
+                to="/"
+                className="px-3 py-1 text-blue-600 rounded hover:bg-blue-50 transition-colors"
+              >
+                Tasks
+              </Link>
+              <Link 
+                to="/dashboard"
+                className="px-3 py-1 text-blue-600 rounded hover:bg-blue-50 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <span className="text-gray-700">Welcome, {user?.name || 'User'}</span>
               <button
                 onClick={handleLogout}
                 className="px-3 py-1 text-sm text-red-600 rounded border border-red-600 hover:bg-red-600 hover:text-white transition-colors"

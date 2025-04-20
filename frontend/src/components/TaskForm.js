@@ -1,41 +1,18 @@
 import React, { useState } from 'react';
 
-interface TaskFormProps {
-  onSubmit: (taskData: {
-    title: string;
-    description: string;
-    status: 'todo' | 'in_progress' | 'completed';
-    priority: 'low' | 'medium' | 'high';
-    category: string;
-    dueDate?: Date;
-  }) => void;
-  initialData?: {
-    title: string;
-    description: string;
-    status: 'todo' | 'in_progress' | 'completed';
-    priority: 'low' | 'medium' | 'high';
-    category: string;
-    dueDate?: Date;
-  };
-}
-
-const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, initialData }) => {
+const TaskForm = ({ onSubmit, initialData }) => {
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
-  const [status, setStatus] = useState<'todo' | 'in_progress' | 'completed'>(
-    initialData?.status || 'todo'
-  );
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(
-    initialData?.priority || 'medium'
-  );
+  const [status, setStatus] = useState(initialData?.status || 'todo');
+  const [priority, setPriority] = useState(initialData?.priority || 'medium');
   const [category, setCategory] = useState(initialData?.category || 'General');
-  const [dueDate, setDueDate] = useState<string>(
+  const [dueDate, setDueDate] = useState(
     initialData?.dueDate 
       ? new Date(initialData.dueDate).toISOString().split('T')[0]
       : ''
   );
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
     const formData = {
@@ -97,7 +74,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, initialData }) => {
           <select
             id="status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
+            onChange={(e) => setStatus(e.target.value)}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="todo">To Do</option>
@@ -113,7 +90,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, initialData }) => {
           <select
             id="priority"
             value={priority}
-            onChange={(e) => setPriority(e.target.value as any)}
+            onChange={(e) => setPriority(e.target.value)}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="low">Low</option>

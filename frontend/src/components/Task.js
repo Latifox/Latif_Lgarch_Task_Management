@@ -1,18 +1,6 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 
-interface TaskProps {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  category: string;
-  dueDate?: Date;
-  onUpdate: (id: string, data: any) => void;
-  onDelete: (id: string) => void;
-}
-
-const Task: React.FC<TaskProps> = ({
+const Task = ({
   id,
   title,
   description,
@@ -23,8 +11,11 @@ const Task: React.FC<TaskProps> = ({
   onUpdate,
   onDelete
 }) => {
+  const [localStatus, setLocalStatus] = useState(status);
+  const statusTimeoutRef = useRef(null);
+
   const getStatusColor = () => {
-    switch (status) {
+    switch (localStatus) {
       case 'todo':
         return 'bg-gray-200';
       case 'in_progress':
@@ -49,8 +40,19 @@ const Task: React.FC<TaskProps> = ({
     }
   };
 
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onUpdate(id, { status: e.target.value });
+  const handleStatusChange = (e) => {
+    const newStatus = e.target.value;
+    setLocalStatus(newStatus);
+    
+    // Clear any existing timeout
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current);
+    }
+    
+    // Set a new timeout to debounce the API call
+    statusTimeoutRef.current = setTimeout(() => {
+      onUpdate(id, { status: newStatus });
+    }, 500); // 500ms debounce
   };
 
   return (
@@ -59,7 +61,7 @@ const Task: React.FC<TaskProps> = ({
         <h3 className="text-xl font-semibold">{title}</h3>
         <div className="flex space-x-2">
           <select
-            value={status}
+            value={localStatus}
             onChange={handleStatusChange}
             className="px-2 py-1 rounded border border-gray-300"
           >

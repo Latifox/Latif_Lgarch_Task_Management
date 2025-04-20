@@ -1,26 +1,131 @@
-# Task Management Application
+# Task Manager Application
 
-A simple, yet powerful task management application that helps users organize their daily tasks, set priorities, and track progress.
+A full-stack task management application with user authentication, task CRUD operations, and containerized deployment.
 
-## Project Overview
-This project implements a web-based task management application using a modern tech stack:
-- Frontend: React.js with TypeScript
-- Backend: Node.js with Express
-- Database: MongoDB
-- Testing: Jest for unit and integration testing
-- CI/CD: GitHub Actions
+## Project Structure
 
-## Key Features
-- User authentication
-- Task creation, editing, and deletion
-- Task categorization and priority setting
-- Due date assignment and reminders
-- Progress tracking
-- Responsive design for mobile and desktop
+```
+task-manager/
+├── backend/               # Node.js Express backend
+│   ├── src/               # Source code
+│   │   ├── controllers/   # Request handlers
+│   │   ├── models/        # Database models
+│   │   ├── routes/        # API routes
+│   │   ├── middleware/    # Custom middleware
+│   │   ├── config/        # Configuration files
+│   │   └── index.js       # Entry point
+│   ├── tests/             # Test files
+│   └── package.json       # Backend dependencies
+├── frontend/              # React frontend
+│   ├── src/               # Source code
+│   │   ├── components/    # UI components
+│   │   ├── pages/         # Page components
+│   │   ├── services/      # API services
+│   │   └── App.tsx        # Main component
+│   ├── tests/             # Test files
+│   └── package.json       # Frontend dependencies
+├── .github/               # GitHub configuration
+│   └── workflows/         # GitHub Actions workflows
+├── docker-compose.yml     # Docker Compose configuration
+├── Dockerfile             # Main Dockerfile
+└── README.md              # Project documentation
+```
 
-## Development Approach
-This project follows Agile methodologies with iterative development cycles and continuous integration/deployment practices.
+## Features
 
-## Team
-- Student 1: [Your Name]
-- Student 2: [Your Partner's Name if applicable] 
+- **User Authentication**: Register, login, logout
+- **Task Management**: Create, read, update, delete tasks
+- **Task Properties**: Title, description, status, priority, category, due date
+- **Filtering & Sorting**: Filter tasks by status, priority, or category
+- **Responsive Design**: Mobile-friendly interface
+- **API Documentation**: Swagger UI
+
+## Tech Stack
+
+### Backend
+- Node.js with Express
+- MongoDB with Mongoose
+- JWT Authentication
+- Swagger for API Documentation
+- Jest for Testing
+
+### Frontend
+- React with TypeScript
+- React Router for Navigation
+- Context API for State Management
+- Tailwind CSS for Styling
+- Jest and React Testing Library
+
+### DevOps
+- Docker & Docker Compose for Containerization
+- GitHub Actions for CI/CD
+- Automated Testing and Deployment
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v16+)
+- MongoDB
+- Docker & Docker Compose (optional)
+
+### Running Locally
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/task-manager.git
+   cd task-manager
+   ```
+
+2. Start the backend:
+   ```
+   cd backend
+   npm install
+   npm run dev
+   ```
+
+3. Start the frontend:
+   ```
+   cd frontend
+   npm install
+   npm start
+   ```
+
+4. Access the application at `http://localhost:3000`
+
+### Using Docker
+
+```
+docker-compose up
+```
+
+Access the application at `http://localhost:3000`
+
+## API Documentation
+
+API documentation is available at `/api-docs` when the server is running.
+
+## Testing
+
+### Backend Tests
+```
+cd backend
+npm test
+```
+
+### Frontend Tests
+```
+cd frontend
+npm test
+```
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+1. On every push to `main` or `develop`, tests are automatically run.
+2. On successful test completion on the `main` branch, a deployment artifact is created.
+3. Test coverage reports are generated for code quality monitoring.
+
+## License
+
+This project is licensed under the MIT License. 

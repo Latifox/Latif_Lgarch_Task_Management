@@ -1,0 +1,167 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:4.4
+        ports:
+          - 27017:27017
+          
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          
+      - name: Install backend dependencies
+        run: cd backend && npm install
+        
+      - name: Run backend tests
+        run: cd backend && npm test
+        env:
+          MONGODB_URI: mongodb://localhost:27017/task-manager-test
+          JWT_SECRET: githubactionssecret
+          
+      - name: Generate test coverage report
+        run: cd backend && npm run coverage
+        
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v2
+        with:
+          name: backend-coverage
+          path: backend/coverage
+          
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: backend
+          
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          
+      - name: Install frontend dependencies
+        run: cd frontend && npm install
+        
+      - name: Run frontend tests with coverage
+        run: cd frontend && npm run test:coverage
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v2
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+          
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: frontend
+        
+  build-and-deploy:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          
+      - name: Install backend dependencies
+        run: cd backend && npm install
+        
+      - name: Install frontend dependencies
+        run: cd frontend && npm install
+        
+      - name: Build frontend
+        run: cd frontend && npm run build
+        
+      - name: Create deployment artifact
+        run: |
+          mkdir -p artifact
+          cp -r backend artifact/
+          mkdir -p artifact/backend/public
+          cp -r frontend/build/* artifact/backend/public/
+          
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: task-manager-app
+          path: artifact
+      
+      - name: Build and push Docker image
+        if: success()
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/task-manager:latest
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_TOKEN }}
+          
+  notify:
+    needs: [build-and-deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Send success notification
+        if: ${{ success() }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ci-cd-notifications
+          SLACK_COLOR: good
+          SLACK_TITLE: 'CI/CD Pipeline Completed Successfully'
+          SLACK_MESSAGE: 'The build, test, and deployment process has completed successfully!'
+          
+      - name: Send failure notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ci-cd-notifications
+          SLACK_COLOR: danger
+          SLACK_TITLE: 'CI/CD Pipeline Failed'
+          SLACK_MESSAGE: 'The build, test, or deployment process has failed. Please check the GitHub Actions logs for details.'
+      
+      - name: Send email notification on failure
+        if: ${{ failure() }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: CI/CD Pipeline Failed
+          body: The CI/CD pipeline for the Task Manager application has failed. Please check the GitHub Actions logs for details.
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions 
